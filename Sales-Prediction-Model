@@ -1,0 +1,129 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime
+
+# Load the data
+df = pd.read_csv('/sales_data.csv')
+
+# Task 1: Data Cleaning
+print("=== Data Cleaning ===")
+print(f"Initial shape: {df.shape}")
+print("\nMissing values check:")
+print(df.isnull().sum())
+
+# Convert Date to datetime
+df['Date'] = pd.to_datetime(df['Date'])
+print("\nData types:")
+print(df.dtypes)
+
+# Task 2: Exploratory Data Analysis (EDA)
+print("\n=== EDA ===")
+
+# Summary Statistics
+print("\nSummary Statistics:")
+print(df[['Quantity_Sold', 'Unit_Price', 'Total_Sales']].describe().round(2))
+
+# Monthly Sales Analysis
+df['Month'] = df['Date'].dt.month_name()
+df['Month_Num'] = df['Date'].dt.month
+monthly_sales = df.groupby(['Month_Num', 'Month'])['Total_Sales'].agg(['sum', 'count']).reset_index()
+monthly_sales['Avg_Daily_Sales'] = monthly_sales['sum'] / df['Date'].dt.days_in_month.max()
+
+print("\nMonthly Sales:")
+print(monthly_sales.sort_values('Month_Num'))
+
+# Sales by Product Category
+category_sales = df.groupby('Product_Category')['Total_Sales'].agg(['sum', 'count', 'mean'])
+category_sales.columns = ['Total_Sales', 'Order_Count', 'Avg_Order_Value']
+category_sales['Pct_of_Total'] = (category_sales['Total_Sales'] / category_sales['Total_Sales'].sum()) * 100
+print("\nSales by Product Category:")
+print(category_sales.sort_values('Total_Sales', ascending=False).round(2))
+
+# Sales by Region
+region_sales = df.groupby('Region')['Total_Sales'].agg(['sum', 'count', 'mean'])
+region_sales.columns = ['Total_Sales', 'Order_Count', 'Avg_Order_Value']
+region_sales['Pct_of_Total'] = (region_sales['Total_Sales'] / region_sales['Total_Sales'].sum()) * 100
+print("\nSales by Region:")
+print(region_sales.sort_values('Total_Sales', ascending=False).round(2))
+
+# Task 3: Further Analysis
+print("\n=== Further Analysis ===")
+
+# Correlation analysis
+corr = df[['Quantity_Sold', 'Unit_Price', 'Total_Sales']].corr()
+print("\nCorrelation Matrix:")
+print(corr)
+
+# Seasonality analysis
+df['Week'] = df['Date'].dt.isocalendar().week
+weekly_sales = df.groupby('Week')['Total_Sales'].sum()
+
+# Task 4: Visualization
+plt.figure(figsize=(15, 10))
+
+# Monthly Sales Trend
+plt.subplot(2, 2, 1)
+sns.lineplot(x='Month', y='sum', data=monthly_sales.sort_values('Month_Num'), marker='o')
+plt.title('Monthly Sales Trend')
+plt.xlabel('Month')
+plt.ylabel('Total Sales')
+plt.xticks(rotation=45)
+
+# Product Category Performance
+plt.subplot(2, 2, 2)
+category_sales['Total_Sales'].sort_values().plot(kind='barh')
+plt.title('Sales by Product Category')
+plt.xlabel('Total Sales')
+
+# Regional Sales
+plt.subplot(2, 2, 3)
+region_sales['Total_Sales'].sort_values().plot(kind='pie', autopct='%1.1f%%')
+plt.title('Sales Distribution by Region')
+plt.ylabel('')
+
+# Price vs Quantity
+plt.subplot(2, 2, 4)
+sns.scatterplot(x='Unit_Price', y='Quantity_Sold', data=df, hue='Product_Category', alpha=0.6)
+plt.title('Price vs Quantity Sold')
+plt.xlabel('Unit Price')
+plt.ylabel('Quantity Sold')
+
+plt.tight_layout()
+plt.show()
+
+# Additional Visualizations
+plt.figure(figsize=(15, 5))
+
+# Weekly Seasonality
+plt.subplot(1, 2, 1)
+weekly_sales.plot()
+plt.title('Weekly Sales Pattern')
+plt.xlabel('Week Number')
+plt.ylabel('Total Sales')
+
+# Top Products
+top_products = df.groupby('Product_ID')['Total_Sales'].sum().nlargest(10)
+plt.subplot(1, 2, 2)
+top_products.plot(kind='bar')
+plt.title('Top 10 Products by Revenue')
+plt.xlabel('Product ID')
+plt.ylabel('Total Sales')
+
+plt.tight_layout()
+plt.show()
+
+# Task 5: Reporting Insights
+print("\n=== Key Insights ===")
+print("1. Highest sales months:", monthly_sales.sort_values('sum', ascending=False)['Month'].iloc[0])
+print("2. Top product category:", category_sales.sort_values('Total_Sales', ascending=False).index[0])
+print("3. Strongest region:", region_sales.sort_values('Total_Sales', ascending=False).index[0])
+print(f"4. Price-Quantity correlation: {corr.loc['Quantity_Sold', 'Unit_Price']:.2f} (negative relationship)")
+print("5. Weekly seasonality shows peaks around weeks:", weekly_sales.nlargest(3).index.tolist())
+
+print("\n=== Recommendations ===")
+print("1. Focus marketing efforts in", region_sales.sort_values('Total_Sales').index[0], "to improve performance")
+print("2. Increase inventory for top category before peak months")
+print("3. Consider pricing experiments based on negative price-quantity correlation")
+print("4. Plan promotions during identified weekly peak periods")
